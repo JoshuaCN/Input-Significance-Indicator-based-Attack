@@ -10,8 +10,7 @@ def FeatureEnhancementAttack(model, X, targeted=False, rule='iter', eps=0.1, n=1
         adv_X = np.zeros(X.shape)
         analyzer = innvestigate.create_analyzer("lrp.z", model_wo_softmax)
         for source in range(X.shape[0]):
-            # print('--------------------------------------')
-            # print('Attacking input %i/%i' % (source + 1, X.shape[0]))
+
             idx_start = 0
             if rule == 'flip':
                 idx_end = 1
@@ -39,19 +38,16 @@ def FeatureEnhancementAttack(model, X, targeted=False, rule='iter', eps=0.1, n=1
         adv_X = np.zeros([X.shape[0],10,X.shape[1],X.shape[2],X.shape[3]])
         analyzer = innvestigate.create_analyzer("lrp.z", model_wo_softmax, neuron_selection_mode='index')
         for source in range(X.shape[0]):
-            print('--------------------------------------')
-            print('Attacking input %i/%i' % (source + 1, X.shape[0]))
+
             for target in range(10):
-                # print('Generating adv. example for target class %i' % target)
+
                 idx_start = 0
                 if rule == 'flip':
                     idx_end = 1
                 else:
                     idx_end = n
                 adv_x = X[source:source + 1].copy()
-                # a = ivis.heatmap(analysis)
-                # plt.imshow(a[0], cmap="seismic")
-                # plt.show()
+
                 while np.argmax(model.predict(adv_x)) != target:
                     r = analyzer.analyze(adv_x, neuron_selection=target)
                     idx = r.flatten().argsort()[idx_start:idx_end]
