@@ -2,7 +2,6 @@ import numpy as np
 import innvestigate
 import keras.models
 import innvestigate.utils as iutils
-from utils_mnist import heatmap
 from cleverhans.plot.pyplot_image import grid_visual
 
 
