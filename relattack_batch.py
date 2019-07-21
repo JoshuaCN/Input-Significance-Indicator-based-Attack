@@ -89,8 +89,8 @@ def _apply_l0_perturbation(batch, r, method, y, active_indices, used_features):
             r[act_used_features == 1] = np.inf  # 若为 targeted，将已用的特征的r值设为 inf
             ind = np.argpartition(r, 0, axis=1)[:, 0:]  # 取r值最小的特征
         tmp_batch = batch[active_indices]
-        tmp_batch[np.arange(len(active_indices)), ind[:, 0]] *= -1
-        # tmp_batch[np.arange(len(active_indices)), ind[:, 0]] = -1 * np.sign(tmp_batch[np.arange(len(active_indices)), ind[:, 0]])
+        # tmp_batch[np.arange(len(active_indices)), ind[:, 0]] *= -1
+        tmp_batch[np.arange(len(active_indices)), ind[:, 0]] = -1 * np.sign(tmp_batch[np.arange(len(active_indices)), ind[:, 0]])
         # tmp_batch[np.arange(len(active_indices)), ind[:, 0]] = -0.5 * np.sign(tmp_batch[np.arange(len(active_indices)), ind[:, 0]] - 0.5) + 0.5
         batch[active_indices] = tmp_batch
     else:
