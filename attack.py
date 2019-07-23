@@ -9,6 +9,7 @@ from train import create_lenet_model, create_cnn_model
 from relattack_batch import *
 from art.attacks.carlini import CarliniL2Method as CW_2, CarliniLInfMethod as CW_inf
 from art.attacks.projected_gradient_descent import ProjectedGradientDescent as PGD_art
+from art.attacks.saliency_map import SaliencyMapMethod as JSMA_art
 from keras.datasets.mnist import load_data as load_mnist
 from keras.datasets.cifar10 import load_data as load_cifar10
 from art.classifiers import KerasClassifier
@@ -26,7 +27,7 @@ Defense = False
 Show = True
 Transfer = False
 
-Gamma = 0.00001
+Gamma = 0.001
 Batch_Size = 100
 # m = [3, 2, 1, 18, 4, 8, 11, 0, 61, 7]
 # m = range(100)
@@ -44,8 +45,9 @@ attacks = [
 
             # 'SA',
             # 'FEA',
-            'JSMA_p',
-            'JSMA_n'
+            # 'JSMA_p',
+            # 'JSMA_n'
+            'JSMA_art'
 
             #  'PGD_art',
             # 'CW_art',
@@ -89,9 +91,8 @@ else:
     # Get some example test set images.
     images, label_to_class_name = utils.get_imagenet_data(net["image_shape"][0])
     X = np.zeros([np.size(m), 299, 299, 3])
-    Y = np.zeros(np.size(m))
     for i in m:
-        X[i] = images[i][0]
+        X[i] = images[8][0]
     X = keras.applications.inception_v3.preprocess_input(X)
 
 art = KerasClassifier(clip_values=(-1., 1.), model=model)
@@ -278,6 +279,13 @@ if 'CW_hans' in attacks:
     if Show:
         CW_X = (CW_X + 1) / 2
         grid_visual(np.reshape(CW_X, (10, CW_X.shape[0] // 10, img_rows, img_cols, nchannels)))
+
+if 'JSMA_art' in attacks:
+    jsma = JSMA_art(art,theta=2.,gamma=Gamma)
+    JSMA_X = jsma.generate(x=X)
+    succ_rate,measure = evaluate(model,X,JSMA_X,Targeted)
+    print("\nJSMA success rate: %.2f%%" % (succ_rate * 100))
+    print('\nMetrics:%.2f, %.2f, %.3f, %.3f' % (measure[0:4]))
 
 
 
