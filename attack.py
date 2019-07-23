@@ -19,46 +19,42 @@ import os
 import utils
 import keras
 import time
-import numpy as np ; na = np.newaxis
+import numpy as np; na = np.newaxis
 
-
-Targeted = False
+Targeted = True
 Defense = False
-Show = True
+Show = False
 Transfer = False
 
-Gamma = 0.001
+Gamma = 0.01 # mnist 0.01
 Batch_Size = 100
 # m = [3, 2, 1, 18, 4, 8, 11, 0, 61, 7]
-# m = range(100)
-m = range(1)
+m = range(100)
+# m = range(1)
 
-NORM = 0
-EPS = 0.1
-N = 20
+NORM = np.inf
+EPS = 0.1  # mnist_inf 0.15
+N = 30
 dataset = [
         # 'mnist',
-        # 'cifar10',
-        'imagenet',
+        'cifar10',
+        # 'imagenet',
 ]
 attacks = [
+        # 'SA',
+        'FEA',
+        # 'JSMA_p',
+        # 'JSMA_n'
+        # 'JSMA_art'
 
-            # 'SA',
-            # 'FEA',
-            # 'JSMA_p',
-            # 'JSMA_n'
-            'JSMA_art'
-
-            #  'PGD_art',
-            # 'CW_art',
-            # 'CW_hans',
+         'PGD_art',
+        # 'CW_art',
+        # 'CW_hans',
 ]
-
 
 # Create TF session and set as Keras backend session
 sess = tf.Session()
 keras.backend.set_session(sess)
-
 
 if dataset == ['mnist']:
     (_, _), (X, Y) = load_mnist()
@@ -99,7 +95,6 @@ art = KerasClassifier(clip_values=(-1., 1.), model=model)
 clever = KerasModelWrapper(model)
 (img_rows, img_cols, nchannels) = X.shape[1:4]
 
-
 if 'SA' in attacks:
     start = time.time()
     if not Targeted:
@@ -121,9 +116,9 @@ if 'SA' in attacks:
     if Transfer:
         transfer(X, SA_X)
     if Show:
-        SA_X = (SA_X + 1)/2
-        grid_visual(SA_X.reshape(np.int(np.ceil(SA_X.shape[0] / 10)), np.minimum(10,np.size(m)), img_rows, img_cols, nchannels))
-
+        SA_X = (SA_X + 1) / 2
+        grid_visual(SA_X.reshape(np.int(np.ceil(SA_X.shape[0] / 10)), np.minimum(10, np.size(m)), img_rows, img_cols,
+                                 nchannels))
 
 if 'FEA' in attacks:
     start = time.time()
@@ -136,52 +131,53 @@ if 'FEA' in attacks:
             FEA_X[:, target] = adv_x
         FEA_X = FEA_X.reshape([10 * np.size(m), img_rows, img_cols, nchannels])
     end = time.time()
-    print('Time:%.1f' % (end-start))
+    print('Time:%.1f' % (end - start))
 
-    succ_rate,measure = evaluate(model, X, FEA_X, targeted=Targeted)
+    succ_rate, measure = evaluate(model, X, FEA_X, targeted=Targeted)
     print("\nFEA-%s success rate: %.2f%%" % (NORM, succ_rate * 100))
     print('\nMetrics:%.2f, %.2f, %.3f, %.3f' % (measure[0:4]))
     if Defense:
-        defenses(model,X,FEA_X,FS=True,SS=True)
+        defenses(model, X, FEA_X, FS=True, SS=True)
     if Transfer:
         transfer(X, FEA_X)
     if Show:
         FEA_X = (FEA_X + 1) / 2
-        grid_visual(FEA_X.reshape(np.int(np.ceil(FEA_X.shape[0] / 10)), np.minimum(10,np.size(m)), img_rows, img_cols, nchannels))
+        grid_visual(FEA_X.reshape(np.int(np.ceil(FEA_X.shape[0] / 10)), np.minimum(10, np.size(m)), img_rows, img_cols,
+                                  nchannels))
 
 if 'PGD_art' in attacks:
-    pgd = PGD_art(art)
-    if NORM == 2:
-        pgd_params = {
-                    'eps': 10.,
-                    'eps_step': EPS,
-                    'max_iter': Gamma,
-                    'norm': 2,
-                    'batch_size': Batch_Size,
-                     }
-    elif NORM == np.inf:
-        pgd_params = {
-                    'eps': 10.,
-                    'eps_step': EPS,
-                    'max_iter': Gamma,
-                    'norm': np.inf,
-                    'batch_size': Batch_Size,
-                     }
+    pgd_params = {
+        'eps': 100.,
+        'eps_step': 0.3, # mnist_inf 0.1
+        'max_iter': Gamma*img_cols*img_cols*nchannels,
+        'norm': NORM,
+        'batch_size': Batch_Size,
+        'targeted': Targeted,
+    }
+    pgd = PGD_art(art, **pgd_params)
     start = time.time()
-    PGD_X = pgd.generate(X, **pgd_params)
+    if not Targeted:
+        PGD_X = pgd.generate(X)
+    else:
+        PGD_X = np.zeros([np.size(m), 10, img_rows, img_cols, nchannels])
+        for target in range(10):
+            one_hot_target = np.zeros((np.size(m), 10))
+            one_hot_target[:, target] = 1
+            adv_x = pgd.generate(X,one_hot_target)
+            PGD_X[:, target] = adv_x
+        PGD_X = PGD_X.reshape([10 * np.size(m), img_rows, img_cols, nchannels])
     end = time.time()
-    print('Time:%.1f' % (end-start))
-    succ_rate,measure = evaluate(model,X,PGD_X)
+    print('Time:%.1f' % (end - start))
+    succ_rate, measure = evaluate(model, X, PGD_X, Targeted)
     print("\nPGD-%s success rate: %.2f%%" % (NORM, succ_rate * 100))
     print('\nMetrics:%.2f, %.2f, %.3f, %.3f' % (measure[0:4]))
     if Defense:
-        defenses(model,X,PGD_X,FS=True,SS=True)
+        defenses(model, X, PGD_X, FS=True, SS=True)
     if Transfer:
         transfer(X, PGD_X)
     if Show:
         PGD_X = (PGD_X + 1) / 2
         grid_visual(np.reshape(PGD_X, (10, PGD_X.shape[0] // 10, img_rows, img_cols, nchannels)))
-
 
 if 'JSMA_p' in attacks:
     jsma_p = JSMA_hans(clever, sess=sess)
@@ -192,7 +188,8 @@ if 'JSMA_p' in attacks:
         start = time.time()
         JSMA_p = np.zeros(X.shape)
         for batch_id in range(int(np.ceil(X.shape[0] / float(Batch_Size)))):
-            JSMA_p[batch_id * Batch_Size:(batch_id + 1) * Batch_Size] = jsma_p.generate_np(X[batch_id * Batch_Size:(batch_id + 1) * Batch_Size], **jsma_params)
+            JSMA_p[batch_id * Batch_Size:(batch_id + 1) * Batch_Size] = jsma_p.generate_np(
+                X[batch_id * Batch_Size:(batch_id + 1) * Batch_Size], **jsma_params)
         end = time.time()
         print('Time:%.1f' % (end - start))
     else:
@@ -203,11 +200,12 @@ if 'JSMA_p' in attacks:
                 one_hot_target = np.zeros((1, 10))
                 one_hot_target[0, target] = 1
                 jsma_params['y_target'] = one_hot_target
-                JSMA_p[batch_id * Batch_Size:(batch_id + 1) * Batch_Size, target, ...] = jsma_p.generate_np(X[batch_id * Batch_Size:(batch_id + 1) * Batch_Size], **jsma_params)
+                JSMA_p[batch_id * Batch_Size:(batch_id + 1) * Batch_Size, target, ...] = jsma_p.generate_np(
+                    X[batch_id * Batch_Size:(batch_id + 1) * Batch_Size], **jsma_params)
         JSMA_p = JSMA_p.reshape([10 * np.size(m), img_rows, img_cols, nchannels])
         end = time.time()
         print('Time:%.1f' % (end - start))
-    succ_rate,measure = evaluate(model, X, JSMA_p, Targeted)
+    succ_rate, measure = evaluate(model, X, JSMA_p, Targeted)
     print("\nJSMA-%s success rate: %.2f%%" % (NORM, succ_rate * 100))
     print('\nMetrics:%.2f, %.2f, %.3f, %.3f' % (measure[0:4]))
     if Defense:
@@ -218,7 +216,6 @@ if 'JSMA_p' in attacks:
         JSMA_p = (JSMA_p + 1) / 2
         grid_visual(np.reshape(JSMA_p, (JSMA_p.shape[0] // 10, 10, img_rows, img_cols, nchannels)))
 
-
 if 'JSMA_n' in attacks:
     jsma_n = JSMA_hans(clever, sess=sess)
     jsma_params = {'theta': -2., 'gamma': Gamma,
@@ -228,7 +225,8 @@ if 'JSMA_n' in attacks:
         start = time.time()
         JSMA_n = np.zeros(X.shape)
         for batch_id in range(int(np.ceil(X.shape[0] / float(Batch_Size)))):
-            JSMA_n[batch_id * Batch_Size:(batch_id + 1) * Batch_Size] = jsma_n.generate_np(X[batch_id * Batch_Size:(batch_id + 1) * Batch_Size], **jsma_params)
+            JSMA_n[batch_id * Batch_Size:(batch_id + 1) * Batch_Size] = jsma_n.generate_np(
+                X[batch_id * Batch_Size:(batch_id + 1) * Batch_Size], **jsma_params)
         end = time.time()
         print('Time:%.1f' % (end - start))
     else:
@@ -239,11 +237,12 @@ if 'JSMA_n' in attacks:
                 one_hot_target = np.zeros((1, 10))
                 one_hot_target[0, target] = 1
                 jsma_params['y_target'] = one_hot_target
-                JSMA_n[batch_id * Batch_Size:(batch_id + 1) * Batch_Size, target, ...] = jsma_n.generate_np(X[batch_id * Batch_Size:(batch_id + 1) * Batch_Size], **jsma_params)
+                JSMA_n[batch_id * Batch_Size:(batch_id + 1) * Batch_Size, target, ...] = jsma_n.generate_np(
+                    X[batch_id * Batch_Size:(batch_id + 1) * Batch_Size], **jsma_params)
         JSMA_n = JSMA_n.reshape([10 * np.size(m), img_rows, img_cols, nchannels])
         end = time.time()
         print('Time:%.1f' % (end - start))
-    succ_rate,measure = evaluate(model, X, JSMA_n, Targeted)
+    succ_rate, measure = evaluate(model, X, JSMA_n, Targeted)
     print("\nJSMA-%s success rate: %.2f%%" % (NORM, succ_rate * 100))
     print('\nMetrics:%.2f, %.2f, %.3f, %.3f' % (measure[0:4]))
     if Defense:
@@ -253,7 +252,6 @@ if 'JSMA_n' in attacks:
     if Show:
         JSMA_n = (JSMA_n + 1) / 2
         grid_visual(np.reshape(JSMA_n, (JSMA_n.shape[0] // 10, 10, img_rows, img_cols, nchannels)))
-
 
 if 'CW_hans' in attacks:
     cw = CW_hans(clever, sess=sess)
@@ -269,11 +267,11 @@ if 'CW_hans' in attacks:
     CW_X = cw.generate_np(X, **cw_params)
     end = time.time()
     print('Time:%.1f' % (end - start))
-    succ_rate,measure = evaluate(model,X,CW_X)
+    succ_rate, measure = evaluate(model, X, CW_X)
     print("\nCW-%s success rate: %.2f%%" % (NORM, succ_rate * 100))
     print('\nMetrics:%.2f, %.2f, %.3f, %.3f' % (measure[0:4]))
     if Defense:
-        defenses(model,X,CW_X,FS=True,SS=True)
+        defenses(model, X, CW_X, FS=True, SS=True)
     if Transfer:
         transfer(X, CW_X)
     if Show:
@@ -281,12 +279,18 @@ if 'CW_hans' in attacks:
         grid_visual(np.reshape(CW_X, (10, CW_X.shape[0] // 10, img_rows, img_cols, nchannels)))
 
 if 'JSMA_art' in attacks:
-    jsma = JSMA_art(art,theta=2.,gamma=Gamma)
+    jsma = JSMA_art(art, theta=2., gamma=Gamma)
+    start = time.time()
     JSMA_X = jsma.generate(x=X)
-    succ_rate,measure = evaluate(model,X,JSMA_X,Targeted)
+    end = time.time()
+    print('Time:%.1f' % (end - start))
+    succ_rate, measure = evaluate(model, X, JSMA_X, Targeted)
     print("\nJSMA success rate: %.2f%%" % (succ_rate * 100))
     print('\nMetrics:%.2f, %.2f, %.3f, %.3f' % (measure[0:4]))
-
-
+    if Show:
+        JSMA_X = (JSMA_X + 1) / 2
+        grid_visual(
+            JSMA_X.reshape(np.int(np.ceil(JSMA_X.shape[0] / 10)), np.minimum(10, np.size(m)), img_rows, img_cols,
+                           nchannels))
 
 

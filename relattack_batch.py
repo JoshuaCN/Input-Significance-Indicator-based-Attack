@@ -1,7 +1,8 @@
 import numpy as np
 import innvestigate
 import innvestigate.utils as iutils
-
+import innvestigate.utils.visualizations as ivis
+from cleverhans.plot.pyplot_image import grid_visual
 
 def relevance(model, x, method, gamma, y=None, batch_size=100, norm=0, n=None, eps=None):
     """
@@ -41,11 +42,16 @@ def relevance(model, x, method, gamma, y=None, batch_size=100, norm=0, n=None, e
         used_features = np.zeros_like(batch)
         while len(active_indices) != 0 and it < np.floor(gamma * nb_features):
             r = analyzer.analyze(np.reshape(batch, [batch.shape[0]] + dims)[active_indices], neuron_selection=y)
+
+            # grid_visual(np.reshape(ivis.heatmap(r),[1,1]+dims))
             r = np.reshape(r, (-1, nb_features))
+
             if norm == 0:
                 batch, used_features = _apply_l0_perturbation(batch, r, method, y, active_indices, used_features)
             elif norm == 2:
                 batch = _apply_l2_perturbation(batch, r, y, active_indices, n, eps)
+            elif norm == np.inf:
+                batch = _apply_linf_perturbation(batch, r, y, active_indices, eps)
             current_pred = np.argmax(model.predict(np.reshape(batch, [batch.shape[0]] + dims)), axis=1)
             if y is None:
                 active_indices = np.where(current_pred == preds[batch_index_1:batch_index_2])[0]
@@ -100,12 +106,43 @@ def _apply_l0_perturbation(batch, r, method, y, active_indices, used_features):
 
 
 def _apply_l2_perturbation(batch, r, y, active_indices, n, epsilon):
+    """
+
+    :param batch:
+    :param r:
+    :param y:
+    :param active_indices:
+    :param n:
+    :param epsilon:
+    :return:
+    """
     if y is None:
-        ind = np.argpartition(r, -n, axis=1)[:, (-n):]  # 取r值最大的特征
+        ind = np.argpartition(r, -n, axis=1)[:, (-n):]  # 取r值最大的n个特征
     else:
-        ind = np.argpartition(r, n-1, axis=1)[:, (n-1):]  # 取r值最小的特征
+        ind = np.argpartition(r, n-1, axis=1)[:, :n]  # 取r值最小的n个特征
     tmp_batch = batch[active_indices]
     for i in range(n):
         tmp_batch[np.arange(len(active_indices)), ind[:, i]] -= epsilon * np.sign(tmp_batch[np.arange(len(active_indices)), ind[:, i]])
+    batch[active_indices] = tmp_batch
+    return batch
+
+
+def _apply_linf_perturbation(batch, r, y, active_indices, epsilon):
+    """
+
+    :param batch:
+    :param r:
+    :param y:
+    :param active_indices:
+    :param epsilon:
+    :return:
+    """
+    tmp_batch = batch[active_indices]
+    if y is None:
+        tmp_batch[np.arange(len(active_indices)), :] -= epsilon * np.sign(r) * np.sign(tmp_batch[np.arange(len(active_indices)), :])
+    else:
+        tmp_batch[np.arange(len(active_indices)), :] += epsilon * np.sign(r) * np.sign(
+            tmp_batch[np.arange(len(active_indices)), :])
+    tmp_batch = np.clip(tmp_batch, -1, 1)
     batch[active_indices] = tmp_batch
     return batch
