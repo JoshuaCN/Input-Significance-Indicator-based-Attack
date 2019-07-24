@@ -28,10 +28,10 @@ def evaluate(model,X,adv_X,targeted=False):
     if targeted:
         target = np.tile(np.arange(10), m)
         X = np.repeat(X, 10, axis=0)
-        truth = model.predict_classes(X)
+        truth = np.argmax(model.predict(X), axis=1)
         target[target == truth] = -1
 
-        success = target == model.predict_classes(adv_X)
+        success = target == np.argmax(model.predict(adv_X), axis=1)
         succ_rate = np.sum(success) / (X.shape[0]-m)
         succ_idx = np.where(success)
         measure = metrics(X[succ_idx], adv_X[succ_idx])
