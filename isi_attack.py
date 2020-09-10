@@ -3,7 +3,7 @@ import innvestigate
 import innvestigate.utils as iutils
 
 
-def isi(model, indicator, x, y=None, norm=0, batch_size=100, **kwargs):
+def isi(model, indicator, x, y=None, max_iter=30, norm=0, batch_size=100, **kwargs):
     """
     Input Significance Indicator based Attack, two indicators: sensitivity and relevance are included.
 
@@ -42,7 +42,7 @@ def isi(model, indicator, x, y=None, norm=0, batch_size=100, **kwargs):
             active_indices = np.where(current_pred != target)[0]
         i = 0
         used_features = np.zeros_like(batch)
-        while len(active_indices) != 0 and i < kwargs['max_iters']:
+        while len(active_indices) != 0 and i < max_iter:
             r = analyzer.analyze(np.reshape(batch, [batch.shape[0]] + dims)[active_indices], neuron_selection=y)
             r = np.reshape(r, (-1, nb_features))
 
