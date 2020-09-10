@@ -20,7 +20,7 @@ def isi(model, indicator, x, y=None, max_iter=30, norm=0, batch_size=100, **kwar
     if indicator == 'sensitivity' and norm != 0:
         raise ValueError('Input sensitivity based attack only supports L0 norm, for other norms try the Basic '
                          'Iterative Method/(or Projected Gradient Descent/)')
-    indicator = 'gradient' if indicator == 'sensitivity' else 'lrp.z'
+    indicator = 'gradient' if indicator == 'sensitivity' else 'lrp.epsilon'
     dims = list(x[0].shape)
     nb_features = np.product(dims)
     adv_x = np.reshape(x.astype(np.float32), (-1, nb_features))
