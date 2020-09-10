@@ -10,6 +10,5 @@ By backdistributing confidence scores of some image through the model, we get ev
 We then iteratively find and perturb the most significant feature until the termination condition is reached.
 
 ## Dependencies
-- tensorflow
+- tensorflow=1.13.1
 - [Innvesitigate](https://github.com/albermax/innvestigate)(Fast implementation of significance score backpropagation)
-- [adversarial robustness toolbox](https://github.com/IBM/adversarial-robustness-toolbox) (for evaluation)
