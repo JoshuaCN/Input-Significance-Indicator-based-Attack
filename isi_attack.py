@@ -13,13 +13,12 @@ def isi(model, indicator, x, y=None, norm=0, batch_size=100, **kwargs):
 
     :param y: required for targeted attack.
     :param indicator: choose sensitivity or relevance as the indicator.
-    :param kwargs: when norm=0, 'gamma'=[0,1] is needed to show the maximum percentage of changeable features.
-                    when norm=2, step size 'eps' and  changed features 'n' is needed,
+    :param kwargs:  when norm=2, step size 'eps' and  changed features 'n' is needed,
                     when norm=np.inf, step size 'eps' and 'clip_values'=(min,max) is needed.
     :return: adversarial batch
     """
     if indicator == 'sensitivity' and norm != 0:
-        raise ValueError('input sensitivity based attack only supports L0 norm, for other norms try the Basic '
+        raise ValueError('Input sensitivity based attack only supports L0 norm, for other norms try the Basic '
                          'Iterative Method/(or Projected Gradient Descent/)')
     indicator = 'gradient' if indicator == 'sensitivity' else 'lrp.epsilon'
     dims = list(x[0].shape)
@@ -43,7 +42,7 @@ def isi(model, indicator, x, y=None, norm=0, batch_size=100, **kwargs):
             active_indices = np.where(current_pred != target)[0]
         i = 0
         used_features = np.zeros_like(batch)
-        while len(active_indices) != 0 and i < np.floor(kwargs['gamma'] * nb_features):
+        while len(active_indices) != 0 and i < kwargs['max_iters']:
             r = analyzer.analyze(np.reshape(batch, [batch.shape[0]] + dims)[active_indices], neuron_selection=y)
             r = np.reshape(r, (-1, nb_features))
 
