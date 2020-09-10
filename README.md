@@ -11,4 +11,4 @@ We then iteratively find and perturb the most significant feature until the term
 
 ## Dependencies
 - tensorflow=1.13.1
-- [Innvesitigate](https://github.com/albermax/innvestigate)(Fast implementation of significance score backpropagation)
+- [iNNvesitigate](https://github.com/albermax/innvestigate)(Fast implementation of significance score backpropagation)
