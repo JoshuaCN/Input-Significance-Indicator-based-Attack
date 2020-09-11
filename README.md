@@ -3,7 +3,7 @@ A fast and efficient white-box iterative adversarial attack algorithm against de
 See our paper for more details:
 - [Generating Adversarial Examples with Input Significance Indicator](https://doi.org/10.1016/j.neucom.2020.01.040)
 
-## Introduction
+## How it works
 
 Rather than hard predictions which a classification problem mainly concerns, the logits (non-normalized predictions before softmax function) that a classification model generates can be very helpful in analyzing the model's behavior.
 
